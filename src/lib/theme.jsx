@@ -23,6 +23,7 @@ const DEFAULT_TEMA = {
   tipografia: 'classica',
   mensagem_login: null,
   mensagem_termo: null,
+  cor_texto_sidebar: null,  // null = auto-calcula por luminância
 };
 
 const ThemeContext = createContext(DEFAULT_TEMA);
@@ -39,14 +40,15 @@ export function ThemeProvider({ children }) {
         if (!active) return;
         setTema({
           ...DEFAULT_TEMA,
-          marca_nome:      profile.marca_nome      ?? 'Lapidare',
-          marca_subtitulo: profile.marca_subtitulo ?? null,
-          logo_url:        profile.logo_url        ?? null,
-          cor_primaria:    profile.cor_primaria    ?? DEFAULT_TEMA.cor_primaria,
-          cor_secundaria:  profile.cor_secundaria  ?? DEFAULT_TEMA.cor_secundaria,
-          tipografia:      profile.tipografia      ?? 'classica',
-          mensagem_login:  profile.mensagem_login  ?? null,
-          mensagem_termo:  profile.mensagem_termo  ?? null,
+          marca_nome:        profile.marca_nome      ?? 'Lapidare',
+          marca_subtitulo:   profile.marca_subtitulo ?? null,
+          logo_url:          profile.logo_url        ?? null,
+          cor_primaria:      profile.cor_primaria    ?? DEFAULT_TEMA.cor_primaria,
+          cor_secundaria:    profile.cor_secundaria  ?? DEFAULT_TEMA.cor_secundaria,
+          tipografia:        profile.tipografia      ?? 'classica',
+          mensagem_login:    profile.mensagem_login  ?? null,
+          mensagem_termo:    profile.mensagem_termo  ?? null,
+          cor_texto_sidebar: profile.cor_texto_sidebar ?? null,
         });
         return;
       }
@@ -106,7 +108,16 @@ export function ThemeProvider({ children }) {
     r.style.setProperty('--dark-shade', mistura(primaria, '#000000', 0.15));
     r.style.setProperty('--dark-line',  mistura(primaria, '#000000', 0.25));
 
-    if (primariaEhClara) {
+    // OVERRIDE manual da cor do texto: se a nutri escolheu uma cor específica,
+    // usa ela em vez do cálculo automático por luminância.
+    const overrideTexto = tema.cor_texto_sidebar;
+
+    if (overrideTexto) {
+      // Nutri escolheu cor manualmente · usa essa pra todos os derivados
+      r.style.setProperty('--dark-text',  overrideTexto);
+      r.style.setProperty('--dark-muted', mistura(overrideTexto, primaria, 0.40));
+      r.style.setProperty('--dark-label', mistura(overrideTexto, primaria, 0.60));
+    } else if (primariaEhClara) {
       // Primária CLARA (tan, rose gold, lavanda) → texto PRETO + muted preto-acinzentado
       const textoBase = '#1a1612';
       r.style.setProperty('--dark-text',  textoBase);
@@ -131,7 +142,7 @@ export function ThemeProvider({ children }) {
     r.style.setProperty('--bg-deep', mistura(primaria, '#faf7f2', 0.86));
 
     r.dataset.tipografia = tema.tipografia ?? 'classica';
-  }, [tema.cor_primaria, tema.cor_secundaria, tema.tipografia]);
+  }, [tema.cor_primaria, tema.cor_secundaria, tema.tipografia, tema.cor_texto_sidebar]);
 
   return (
     <ThemeContext.Provider value={tema}>

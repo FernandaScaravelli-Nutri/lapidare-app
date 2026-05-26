@@ -24,6 +24,7 @@ export default function Personalizacao() {
     marca_nome: 'Lapidare',
     marca_subtitulo: '',
     logo_url: null,
+    cor_texto_sidebar: '',  // vazio = auto-calcula contraste
     cor_primaria: '#a08456',
     cor_secundaria: '#c9a96e',
     tipografia: 'classica',
@@ -39,6 +40,7 @@ export default function Personalizacao() {
       marca_nome: profile.marca_nome ?? 'Lapidare',
       marca_subtitulo: profile.marca_subtitulo ?? '',
       logo_url: profile.logo_url ?? null,
+      cor_texto_sidebar: profile.cor_texto_sidebar ?? '',
       cor_primaria: profile.cor_primaria ?? '#a08456',
       cor_secundaria: profile.cor_secundaria ?? '#c9a96e',
       tipografia: profile.tipografia ?? 'classica',
@@ -53,6 +55,7 @@ export default function Personalizacao() {
       marca_nome: form.marca_nome.trim(),
       marca_subtitulo: form.marca_subtitulo.trim() || null,
       logo_url: form.logo_url,
+      cor_texto_sidebar: form.cor_texto_sidebar?.trim() || null,
       cor_primaria: form.cor_primaria,
       cor_secundaria: form.cor_secundaria,
       tipografia: form.tipografia,
@@ -107,8 +110,11 @@ export default function Personalizacao() {
     r.style.setProperty('--amber',     form.cor_secundaria);
     r.style.setProperty('--gold',      form.cor_secundaria);
     r.style.setProperty('--dark',      form.cor_primaria);
+    if (form.cor_texto_sidebar) {
+      r.style.setProperty('--dark-text', form.cor_texto_sidebar);
+    }
     r.dataset.tipografia = form.tipografia;
-  }, [form.cor_primaria, form.cor_secundaria, form.tipografia]);
+  }, [form.cor_primaria, form.cor_secundaria, form.tipografia, form.cor_texto_sidebar]);
 
   return (
     <>
@@ -121,13 +127,19 @@ export default function Personalizacao() {
           <div className="card" style={{ padding: 18, marginBottom: 14 }}>
             <div className="card-title" style={{ marginBottom: 10 }}>Marca</div>
 
-            <label className="form-lbl">Nome da marca</label>
+            <label className="form-lbl">Nome da marca · aparece em CIMA da sidebar e na tela de Login</label>
             <input value={form.marca_nome} onChange={e => setForm(f => ({ ...f, marca_nome: e.target.value }))}
               placeholder="Ex: Lapidare, Nutri Ana, Sara Dias..." />
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontStyle: 'italic' }}>
+              Substitui o "LAPIDARE" no topo da sidebar e na tela de Login das suas pacientes.
+            </div>
 
-            <label className="form-lbl" style={{ marginTop: 10 }}>Subtítulo (opcional)</label>
+            <label className="form-lbl" style={{ marginTop: 14 }}>Subtítulo · aparece EMBAIXO do nome na sidebar</label>
             <input value={form.marca_subtitulo} onChange={e => setForm(f => ({ ...f, marca_subtitulo: e.target.value }))}
-              placeholder="Ex: Nutrição estratégica · Reeducação alimentar" />
+              placeholder='Ex: "Painel da Nutri", "Nutrição estratégica", "by Sara Dias"' />
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, fontStyle: 'italic' }}>
+              Substitui o "Painel da Nutri" embaixo do nome da marca. Deixa vazio se não quiser texto extra.
+            </div>
 
             <label className="form-lbl" style={{ marginTop: 14 }}>Logo</label>
             <div style={{
@@ -216,6 +228,37 @@ export default function Personalizacao() {
                     onChange={e => setForm(f => ({ ...f, cor_secundaria: e.target.value }))}
                     style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }} />
                 </div>
+              </div>
+            </div>
+
+            {/* Cor do texto da sidebar — override manual */}
+            <div style={{ marginTop: 16, padding: 14, background: 'var(--bg2)', borderRadius: 10 }}>
+              <label className="form-lbl" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Cor do texto da sidebar · opcional</span>
+                {form.cor_texto_sidebar && (
+                  <button type="button"
+                    onClick={() => setForm(f => ({ ...f, cor_texto_sidebar: '' }))}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--gold-deep)', fontSize: 11, fontWeight: 500,
+                      textTransform: 'none', letterSpacing: 0,
+                    }}>
+                    ↻ Voltar pro automático
+                  </button>
+                )}
+              </label>
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <input type="color" value={form.cor_texto_sidebar || '#ffffff'}
+                  onChange={e => setForm(f => ({ ...f, cor_texto_sidebar: e.target.value }))}
+                  style={{ width: 50, height: 36, padding: 0, border: '0.5px solid var(--border)', borderRadius: 6, cursor: 'pointer' }} />
+                <input value={form.cor_texto_sidebar}
+                  onChange={e => setForm(f => ({ ...f, cor_texto_sidebar: e.target.value }))}
+                  placeholder="vazio = automático"
+                  style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }} />
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, lineHeight: 1.5 }}>
+                Por padrão o app escolhe sozinho (preto se a primária for clara, branco se for escura).
+                Se quiser forçar uma cor específica pro texto "Visão geral", "Pacientes" etc, escolhe aqui.
               </div>
             </div>
           </div>

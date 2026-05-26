@@ -1294,6 +1294,9 @@ alter table public.nutris add column if not exists cor_secundaria  text default 
 alter table public.nutris add column if not exists tipografia      text default 'classica';
 alter table public.nutris add column if not exists mensagem_login  text;
 alter table public.nutris add column if not exists mensagem_termo  text;
+-- Override manual da cor do texto na sidebar (auto-calculada por luminância
+-- por padrão; aqui a nutri pode forçar uma cor específica se quiser controle total)
+alter table public.nutris add column if not exists cor_texto_sidebar text;
 
 alter table public.nutris drop constraint if exists nutris_tipografia_check;
 alter table public.nutris add constraint nutris_tipografia_check
@@ -1303,24 +1306,36 @@ insert into storage.buckets (id, name, public)
 values ('logos', 'logos', true)
 on conflict (id) do nothing;
 
+-- Garante que o bucket é público (idempotente)
+update storage.buckets set public = true where id = 'logos';
+
+-- SELECT público (bucket é público, mas a policy explícita garante)
+drop policy if exists logos_storage_select on storage.objects;
+create policy logos_storage_select on storage.objects for select using (
+  bucket_id = 'logos'
+);
+
+-- Como cada nutri tem SEU PRÓPRIO Supabase (1 nutri por deploy), permite
+-- qualquer usuário autenticado fazer upload/update/delete no bucket logos.
+-- Mais permissivo que checar UUID (que dava erro de RLS).
 drop policy if exists logos_storage_insert on storage.objects;
 create policy logos_storage_insert on storage.objects for insert with check (
-  bucket_id = 'logos' and split_part(name, '/', 1) = auth.uid()::text
-);
-drop policy if exists logos_storage_delete on storage.objects;
-create policy logos_storage_delete on storage.objects for delete using (
-  bucket_id = 'logos' and split_part(name, '/', 1) = auth.uid()::text
+  bucket_id = 'logos' and auth.uid() is not null
 );
 drop policy if exists logos_storage_update on storage.objects;
-create policy logos_storage_update on storage.objects for update using (
-  bucket_id = 'logos' and split_part(name, '/', 1) = auth.uid()::text
+create policy logos_storage_update on storage.objects for update
+  using (bucket_id = 'logos' and auth.uid() is not null)
+  with check (bucket_id = 'logos' and auth.uid() is not null);
+drop policy if exists logos_storage_delete on storage.objects;
+create policy logos_storage_delete on storage.objects for delete using (
+  bucket_id = 'logos' and auth.uid() is not null
 );
 
 create or replace function public.buscar_personalizacao_nutri(p_nutri_id uuid)
 returns table(
   marca_nome text, marca_subtitulo text, logo_url text,
   cor_primaria text, cor_secundaria text, tipografia text,
-  mensagem_login text, mensagem_termo text
+  mensagem_login text, mensagem_termo text, cor_texto_sidebar text
 )
 language sql security definer set search_path = public
 as $$
@@ -1330,7 +1345,7 @@ as $$
     coalesce(cor_primaria,   '#a08456'),
     coalesce(cor_secundaria, '#c9a96e'),
     coalesce(tipografia,     'classica'),
-    mensagem_login, mensagem_termo
+    mensagem_login, mensagem_termo, cor_texto_sidebar
   from public.nutris where id = p_nutri_id limit 1;
 $$;
 grant execute on function public.buscar_personalizacao_nutri(uuid) to anon, authenticated;
@@ -1343,7 +1358,7 @@ create or replace function public.buscar_marca_principal()
 returns table(
   marca_nome text, marca_subtitulo text, logo_url text,
   cor_primaria text, cor_secundaria text, tipografia text,
-  mensagem_login text
+  mensagem_login text, cor_texto_sidebar text
 )
 language sql security definer set search_path = public
 as $$
@@ -1353,7 +1368,7 @@ as $$
     coalesce(cor_primaria,   '#a08456'),
     coalesce(cor_secundaria, '#c9a96e'),
     coalesce(tipografia,     'classica'),
-    mensagem_login
+    mensagem_login, cor_texto_sidebar
   from public.nutris
   order by created_at asc
   limit 1;
