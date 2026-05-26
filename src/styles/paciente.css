@@ -5,19 +5,15 @@
    ============================================================= */
 
 .paciente-app {
-  --bg: #f0ebe3;
-  --bg-soft: #f5f2ec;
-  --bg-deep: #e8e2d6;
-  --ink: #1c1712;
+  /* Cores principais (--ink, --gold, --gold-deep, --bg, --bg-soft, --bg-deep)
+     herdam do :root em tokens.css — assim o ThemeProvider consegue
+     sobrescrever via Personalização. */
   --ink-soft: #4a3828;
   --muted: #8c7b6b;
   --muted-2: #b4a896;
   --hair: #d9d3c9;
   --hair-soft: #e6dfd3;
   --paper: #ffffff;
-  --gold: #c4a882;
-  --gold-soft: #ebd9b8;
-  --gold-deep: #a08456;
   --green: #3b6d11;
   --green-soft: #e6f0d4;
   --blue: #185fa5;
@@ -39,7 +35,7 @@
 }
 
 @media (min-width: 600px) {
-  body { background: linear-gradient(180deg, #ece6dc 0%, #e3dcce 100%); }
+  body { background: linear-gradient(180deg, var(--bg-soft) 0%, var(--bg-deep) 100%); }
   .paciente-app {
     box-shadow: 0 0 32px rgba(28,23,18,.08);
     min-height: 100vh;

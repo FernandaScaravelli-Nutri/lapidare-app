@@ -167,6 +167,34 @@ Pronto. Agora você tem o seu próprio repositório com o código do app.
 
 ## 🆘 Problemas comuns
 
+### ⚠️ "Falha ao buscar" / "Failed to fetch" ao criar conta
+
+Esse é o erro **mais comum** quando a nutri está montando o app pela primeira vez. Significa que o app **não conseguiu falar com o Supabase**. Resolve seguindo essa ordem:
+
+**1. Confirma se as variáveis do Netlify estão certas**
+- Vai em **Site settings → Environment variables**
+- Confere que tem **EXATAMENTE** essas 2 (sem espaço extra, sem aspas):
+  - `VITE_SUPABASE_URL` = `https://XXXXX.supabase.co` (XXXXX é o **Project ID**, sem traços ou nome bonito — exemplo: `ihlsexyjbbcdjdddmiym.supabase.co`)
+  - `VITE_SUPABASE_ANON_KEY` = `sb_publishable_xxxxx...`
+
+**2. Fez redeploy DEPOIS de adicionar as variáveis?**
+- Netlify só "lê" as variáveis quando faz build novo
+- Vai em **Deploys → Trigger deploy → Deploy site**
+- Aguarda ~2-3 min até ficar **"Published"** em verde
+
+**3. Seu Supabase está pausado?** (só se app já funcionou antes e parou de funcionar agora)
+- Plano grátis pausa projetos com 7+ dias sem acesso
+- Vai em [supabase.com](https://supabase.com) → seu projeto
+- Se aparecer botão verde **"Restore Project"**, clica e espera ~1 min
+
+**4. Pra confirmar exatamente o que falhou:**
+- No site, aperta **F12** (abre console do navegador)
+- Tenta cadastrar de novo
+- Olha a aba **Console** — vai mostrar a URL exata que falhou e por quê
+- Se aparecer `ERR_NAME_NOT_RESOLVED` → URL errada (causa 1)
+- Se aparecer `404` ou `Project does not exist` → Project ID errado
+- Se aparecer `401 Unauthorized` → Publishable key errada
+
 ### "Bucket not found" ao subir arquivo
 Faltou rodar parte do setup.sql. Volta na **Etapa 1.3** e roda o SQL inteiro de novo (é seguro repetir).
 
@@ -177,7 +205,7 @@ Você excedeu 3 emails/hora do Supabase grátis. **Etapa 1.4** desliga a confirm
 Algumas vezes o Supabase bloqueia emails do mesmo domínio. Use um email diferente ou um alias `+teste` (ex: `seuemail+ana@gmail.com`).
 
 ### App diz "Conectando..." sem fim
-Conferir se as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no Netlify estão **idênticas** às do Supabase. Depois de mudar, **Trigger deploy** novamente.
+Mesma causa do "Falha ao buscar" — segue o passo a passo acima.
 
 ---
 

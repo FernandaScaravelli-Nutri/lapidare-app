@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase.js';
 import { useSession } from '../../lib/session.jsx';
+import { useTheme } from '../../lib/theme.jsx';
 import BrandFooter from '../../components/BrandFooter.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, role, loading: sessionLoading } = useSession();
+  const tema = useTheme();
 
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
@@ -29,13 +31,43 @@ export default function Login() {
     }
   }, [session, role, sessionLoading, navigate, location.state]);
 
+  // Traduz erros técnicos em mensagens acionáveis pra nutri
+  function mensagemAmigavel(error) {
+    if (!error) return null;
+    const msg = (error.message || String(error)).toLowerCase();
+
+    // Erro de fetch / conexão = quase sempre variáveis do Netlify mal configuradas
+    if (msg.includes('failed to fetch') ||
+        msg.includes('falha ao buscar') ||
+        msg.includes('networkerror') ||
+        msg.includes('err_name_not_resolved') ||
+        msg.includes('load failed')) {
+      return 'Não consegui conectar com o Supabase. Isso geralmente significa:\n\n' +
+             '1) Você esqueceu de fazer Trigger Deploy no Netlify depois de adicionar as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.\n\n' +
+             '2) Ou a URL do Supabase está errada (precisa ser https://SEU-PROJECT-ID.supabase.co — confira em Supabase → Settings → General → Reference ID).\n\n' +
+             'Detalhes em SETUP.md → Problemas comuns.';
+    }
+
+    // Outros erros conhecidos
+    if (msg.includes('invalid login credentials')) return 'Email ou senha incorretos.';
+    if (msg.includes('email rate limit')) return 'Limite de emails atingido. Desligue "Confirm email" em Supabase → Authentication → Sign In / Providers.';
+    if (msg.includes('user already registered')) return 'Já existe uma conta com esse email. Tente fazer login.';
+
+    return error.message;
+  }
+
   async function handleSignIn(e) {
     e.preventDefault();
     setErro(null);
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-    setBusy(false);
-    if (error) setErro(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+      setBusy(false);
+      if (error) setErro(mensagemAmigavel(error));
+    } catch (err) {
+      setBusy(false);
+      setErro(mensagemAmigavel(err));
+    }
   }
 
   async function handleSignUp(e) {
@@ -44,25 +76,30 @@ export default function Login() {
     setAviso(null);
     if (!nome.trim()) return setErro('Informe o nome completo.');
     setBusy(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: senha,
-      options: {
-        data: { role: 'nutri', nome: nome.trim(), crn: crn.trim() },
-      },
-    });
-    setBusy(false);
-    if (error) return setErro(error.message);
-    if (!data.session) {
-      setAviso('Conta criada. Verifique seu email para confirmar e depois faça login.');
-      setMode('signin');
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: senha,
+        options: {
+          data: { role: 'nutri', nome: nome.trim(), crn: crn.trim() },
+        },
+      });
+      setBusy(false);
+      if (error) return setErro(mensagemAmigavel(error));
+      if (!data.session) {
+        setAviso('Conta criada. Verifique seu email para confirmar e depois faça login.');
+        setMode('signin');
+      }
+    } catch (err) {
+      setBusy(false);
+      setErro(mensagemAmigavel(err));
     }
   }
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #ece6dc 0%, #e3dcce 100%)',
+      background: 'linear-gradient(180deg, var(--bg-soft) 0%, var(--bg-deep) 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: 24, fontFamily: 'var(--font-sans)'
     }}>
@@ -74,12 +111,20 @@ export default function Login() {
         padding: 32
       }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{
-            fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase',
-            color: 'var(--muted)', marginBottom: 4
-          }}>
-            Lapidare
-          </div>
+          {tema.logo_url ? (
+            <img
+              src={tema.logo_url}
+              alt={tema.marca_nome ?? 'Lapidare'}
+              style={{ maxHeight: 48, maxWidth: 200, margin: '0 auto 8px', display: 'block' }}
+            />
+          ) : (
+            <div style={{
+              fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase',
+              color: 'var(--muted)', marginBottom: 4
+            }}>
+              {tema.marca_nome ?? 'Lapidare'}
+            </div>
+          )}
           <h1 style={{
             fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 28,
             letterSpacing: '-0.02em', color: 'var(--ink)'
@@ -88,7 +133,7 @@ export default function Login() {
           </h1>
           <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
             {mode === 'signin'
-              ? 'Acesse seu painel ou app'
+              ? (tema.mensagem_login ?? 'Acesse seu painel ou app')
               : 'Cadastro de nutricionista'}
           </p>
         </div>
@@ -130,7 +175,7 @@ export default function Login() {
 
           {erro && (
             <div style={{
-              fontSize: 12, color: 'var(--red)', background: 'var(--red-soft)',
+              fontSize: 12, color: 'var(--red)', background: 'var(--red-soft)', whiteSpace: 'pre-line', lineHeight: 1.5,
               padding: '8px 12px', borderRadius: 8, marginBottom: 12
             }}>
               {erro}

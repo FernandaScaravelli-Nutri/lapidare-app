@@ -1336,6 +1336,31 @@ $$;
 grant execute on function public.buscar_personalizacao_nutri(uuid) to anon, authenticated;
 
 
+-- 11.X buscar_marca_principal · usada pela tela de Login (anônimo)
+-- Cada deploy é de UMA nutri (a "dona"). Essa função retorna a marca dela
+-- pra personalizar a tela de Login antes mesmo de qualquer usuário logar.
+create or replace function public.buscar_marca_principal()
+returns table(
+  marca_nome text, marca_subtitulo text, logo_url text,
+  cor_primaria text, cor_secundaria text, tipografia text,
+  mensagem_login text
+)
+language sql security definer set search_path = public
+as $$
+  select
+    coalesce(marca_nome, 'Lapidare'),
+    marca_subtitulo, logo_url,
+    coalesce(cor_primaria,   '#a08456'),
+    coalesce(cor_secundaria, '#c9a96e'),
+    coalesce(tipografia,     'classica'),
+    mensagem_login
+  from public.nutris
+  order by created_at asc
+  limit 1;
+$$;
+grant execute on function public.buscar_marca_principal() to anon, authenticated;
+
+
 -- =============================================================
 -- 12. HÁBITOS + AVISO E-BOOK + FIX RECURSÃO RLS
 -- =============================================================

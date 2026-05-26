@@ -307,7 +307,7 @@ function CenterWrap({ children }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #ece6dc 0%, #e3dcce 100%)',
+      background: 'linear-gradient(180deg, var(--bg-soft) 0%, var(--bg-deep) 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: 24, fontFamily: 'var(--font-sans)',
     }}>

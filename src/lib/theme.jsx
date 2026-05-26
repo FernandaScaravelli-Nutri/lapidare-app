@@ -59,9 +59,18 @@ export function ThemeProvider({ children }) {
         setTema(p ? { ...DEFAULT_TEMA, ...p } : DEFAULT_TEMA);
         return;
       }
-      // Anônimo
-      if (!active) return;
-      setTema(DEFAULT_TEMA);
+      // Anônimo (Login, signup, etc): busca a marca da "dona" do deploy
+      // (a primeira/única nutri cadastrada), pra personalizar a tela de Login.
+      // Se ainda não tem nutri criada (primeiro acesso), cai no fallback Lapidare.
+      try {
+        const { data } = await supabase.rpc('buscar_marca_principal');
+        if (!active) return;
+        const p = data?.[0];
+        setTema(p ? { ...DEFAULT_TEMA, ...p } : DEFAULT_TEMA);
+      } catch {
+        if (!active) return;
+        setTema(DEFAULT_TEMA);
+      }
     }
     carregar();
     return () => { active = false; };
@@ -79,17 +88,23 @@ export function ThemeProvider({ children }) {
     r.style.setProperty('--amber',     secundaria);
     r.style.setProperty('--gold',      secundaria);
 
-    // --dark é a cor da sidebar + botões primários (definida em nutri.css).
+    // --dark é a cor da sidebar + botões primários.
     // Substitui pela primária pra pintar SIDEBAR + BOTÕES + CARDS DARK.
     r.style.setProperty('--dark', primaria);
+
+    // --ink (texto principal escuro) → usa a primária pra dar identidade
+    // sem afetar legibilidade (cor escura por natureza).
+    r.style.setProperty('--ink', primaria);
 
     // Versões "soft" derivadas (background sutil com mesma matiz)
     r.style.setProperty('--gold-soft', mistura(primaria, '#ffffff', 0.82));
     r.style.setProperty('--amber-bg',  mistura(secundaria, '#ffffff', 0.88));
 
-    // Pra paciente: --bg-soft e --paper ganham um leve tom da marca
-    // (sutil — só pra dar identidade sem perder legibilidade)
-    r.style.setProperty('--bg-soft',   mistura(primaria, '#faf7f2', 0.92));
+    // Backgrounds derivados da primária — controla telas de Login + wallpaper
+    // (mistura forte com off-white pra ficar bem suave e legível)
+    r.style.setProperty('--bg',      mistura(primaria, '#faf7f2', 0.95));
+    r.style.setProperty('--bg-soft', mistura(primaria, '#faf7f2', 0.92));
+    r.style.setProperty('--bg-deep', mistura(primaria, '#faf7f2', 0.86));
 
     r.dataset.tipografia = tema.tipografia ?? 'classica';
   }, [tema.cor_primaria, tema.cor_secundaria, tema.tipografia]);

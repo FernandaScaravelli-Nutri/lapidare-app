@@ -25,6 +25,13 @@
   --gold-soft: #ebd9b8;
   --gold-deep: #a08456;
 
+  /* ── Aliases controlados pelo ThemeProvider (Personalização) ──
+     Esses são sobrescritos via JS quando a nutri customiza as cores.
+     NÃO redeclarar dentro de .nutri-panel ou .paciente-app, senão
+     o JS perde precedência. */
+  --dark:  #1c1712;   /* sidebar + botões primários */
+  --amber: #c4a882;   /* acento dourado */
+
   --green: #3b6d11;
   --green-soft: #e6f0d4;
   --blue: #185fa5;

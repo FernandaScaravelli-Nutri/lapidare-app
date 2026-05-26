@@ -9,9 +9,9 @@
   --bg2: #f2ede6;
   --bg3: #eae4dc;
   --white: #ffffff;
-  --dark: #1c1712;
+  /* --dark e --amber removidos daqui — agora herdam do :root (tokens.css)
+     pra que o ThemeProvider consiga sobrescrever via Personalização */
   --brown: #8c7b6b;
-  --amber: #c4a882;
   --border: #d9d3c9;
   --text2: #6b6058;
   --text3: #8c7b6b;
