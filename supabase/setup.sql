@@ -84,6 +84,18 @@ create table if not exists public.planos (
 create index if not exists planos_paciente_id_idx on public.planos(paciente_id, publicado_em desc);
 create index if not exists planos_nutri_id_idx on public.planos(nutri_id);
 
+-- 2.3-b Substituições (separadas do plano pra evitar JSON gigante + bugs) ----
+-- dados: jsonb com formato [{ alimento, medida?, substituicoes: string[] }]
+create table if not exists public.substituicoes (
+  id            uuid primary key default gen_random_uuid(),
+  paciente_id   uuid not null references public.pacientes(id) on delete cascade,
+  nutri_id      uuid not null references public.nutris(id) on delete cascade,
+  dados         jsonb not null,
+  publicado_em  timestamptz not null default now()
+);
+create index if not exists substituicoes_paciente_id_idx on public.substituicoes(paciente_id, publicado_em desc);
+create index if not exists substituicoes_nutri_id_idx on public.substituicoes(nutri_id);
+
 -- 2.4 Listas de compras --------------------------------------------
 create table if not exists public.listas_compras (
   id            uuid primary key default gen_random_uuid(),
@@ -418,6 +430,19 @@ create policy planos_select on public.planos
 
 drop policy if exists planos_write_nutri on public.planos;
 create policy planos_write_nutri on public.planos
+  for all using (nutri_id = auth.uid()) with check (nutri_id = auth.uid());
+
+-- 4.3-b substituicoes ----------------------------------------------
+alter table public.substituicoes enable row level security;
+
+drop policy if exists substituicoes_select on public.substituicoes;
+create policy substituicoes_select on public.substituicoes
+  for select using (
+    paciente_id = auth.uid() or nutri_id = auth.uid()
+  );
+
+drop policy if exists substituicoes_write_nutri on public.substituicoes;
+create policy substituicoes_write_nutri on public.substituicoes
   for all using (nutri_id = auth.uid()) with check (nutri_id = auth.uid());
 
 -- 4.4 listas_compras -----------------------------------------------

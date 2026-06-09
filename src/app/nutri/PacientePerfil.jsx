@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase.js';
 import { useSession } from '../../lib/session.jsx';
 import {
   dataBR, iniciais,
-  validarPlano, validarLista, contarItensLista,
+  validarPlano, validarLista, validarSubstituicoes, contarItensLista,
 } from '../../lib/utils.js';
 import { TEMPLATE_PADRAO } from '../../lib/checkinDefault.js';
 import CheckinForm from '../../components/CheckinForm.jsx';
@@ -214,7 +214,8 @@ export default function PacientePerfil() {
           { id: 'evolucao',    label: 'Evolução',     icon: 'chart-line' },
           { id: 'anamnese',    label: 'Anamnese',     icon: 'clipboard-text' },
           { id: 'followup',    label: 'Follow-up',    icon: 'notebook' },
-          { id: 'plano',       label: 'Plano',        icon: 'salad' },
+          { id: 'plano',          label: 'Plano',          icon: 'salad' },
+          { id: 'substituicoes', label: 'Substituições',  icon: 'switch-horizontal' },
           { id: 'compras',     label: 'Compras',      icon: 'shopping-cart' },
           { id: 'suplementacao', label: 'Suplementação', icon: 'pill' },
           { id: 'habitos',       label: 'Hábitos',       icon: 'checklist' },
@@ -249,6 +250,7 @@ export default function PacientePerfil() {
       {tab === 'suplementacao' && <Suplementacao pacienteId={paciente.id} nutriId={user.id} pacienteNome={paciente.nome} />}
       {tab === 'habitos' && <Habitos pacienteId={paciente.id} nutriId={user.id} pacienteNome={paciente.nome} />}
       {tab === 'plano' && <PublicarPlano pacienteId={paciente.id} nutriId={user.id} />}
+      {tab === 'substituicoes' && <PublicarSubstituicoes pacienteId={paciente.id} nutriId={user.id} />}
       {tab === 'compras' && <PublicarLista pacienteId={paciente.id} nutriId={user.id} />}
       {tab === 'prescricoes' && <EnviarPrescricao pacienteId={paciente.id} nutriId={user.id} />}
       {tab === 'ebooks' && <EbooksDaPaciente pacienteId={paciente.id} nutriId={user.id} pacienteNome={paciente.nome} />}
@@ -733,6 +735,125 @@ function PublicarPlano({ pacienteId, nutriId }) {
             </div>
             <button className="btn-outline" style={{ fontSize: 12, padding: '4px 10px' }}
               onClick={() => setVerJson(p)}>
+              <i className="ti ti-code" aria-hidden="true"></i> JSON
+            </button>
+          </>
+        )}
+      />
+
+      {verJson && (
+        <VerJsonModal item={verJson} dados={verJson.dados} onClose={() => setVerJson(null)} />
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+   PUBLICAR SUBSTITUIÇÕES
+   Tabela separada do plano alimentar — a nutri pode atualizar as
+   substituições sem mexer no plano publicado. A paciente vê as
+   substituições ao tocar num alimento do plano (lookup pelo nome).
+   ============================================================ */
+function PublicarSubstituicoes({ pacienteId, nutriId }) {
+  const [historico, setHistorico] = useState([]);
+  const [json, setJson] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [verJson, setVerJson] = useState(null);
+
+  async function carregar() {
+    const { data } = await supabase
+      .from('substituicoes')
+      .select('id, dados, publicado_em')
+      .eq('paciente_id', pacienteId)
+      .order('publicado_em', { ascending: false })
+      .limit(5);
+    setHistorico(data ?? []);
+  }
+  useEffect(() => { carregar(); }, [pacienteId]);
+
+  async function publicar() {
+    setFeedback(null);
+    let dados;
+    try { dados = JSON.parse(json); }
+    catch (e) { return setFeedback({ tipo: 'erro', msg: 'JSON inválido: ' + e.message }); }
+
+    const v = validarSubstituicoes(dados);
+    if (!v.ok) return setFeedback({ tipo: 'erro', msg: v.erro });
+
+    setBusy(true);
+    const { error } = await supabase.from('substituicoes').insert({
+      paciente_id: pacienteId,
+      nutri_id: nutriId,
+      dados,
+    });
+    setBusy(false);
+    if (error) return setFeedback({ tipo: 'erro', msg: error.message });
+    setFeedback({ tipo: 'ok', msg: `Substituições publicadas! ${dados.length} alimentos com opções de troca.` });
+    setJson('');
+    carregar();
+  }
+
+  async function excluirSubstituicao(s) {
+    const data = dataBR(s.publicado_em);
+    if (!window.confirm(`Excluir substituições publicadas em ${data}?\n\nA paciente não verá mais as substituições.`)) return;
+    const { error } = await supabase.from('substituicoes').delete().eq('id', s.id);
+    if (error) return setFeedback({ tipo: 'erro', msg: error.message });
+    setFeedback({ tipo: 'ok', msg: 'Substituições excluídas.' });
+    carregar();
+  }
+
+  return (
+    <>
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <div className="card-title">Publicar lista de substituições</div>
+            <div className="card-sub">
+              Cole o JSON com substituições por alimento. A paciente vai ver as opções
+              ao tocar em "Ver substituições" em cada alimento do plano.
+            </div>
+          </div>
+        </div>
+        <div className="card-body">
+          <label className="field-label">JSON das substituições</label>
+          <textarea
+            value={json}
+            onChange={e => setJson(e.target.value)}
+            rows={12}
+            placeholder='[{"alimento": "Arroz integral", "medida": "4 col sopa", "substituicoes": ["Quinoa cozida · 4 col sopa", "Batata doce · 1 un média"]}]'
+            style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, resize: 'vertical' }}
+          />
+
+          <DicaJSON
+            exemploPrompt='Gere um JSON com substituições para cada alimento deste plano alimentar [cole o plano da paciente aqui]. Formato exato: array de objetos, cada um com 3 campos — "alimento" (nome igual ao do plano), "medida" (a quantidade do plano) e "substituicoes" (array de strings com 3 a 5 opções equivalentes nutricionalmente, cada uma já incluindo a quantidade). Exemplo: [{"alimento": "Arroz integral", "medida": "4 col sopa", "substituicoes": ["Quinoa cozida · 4 col sopa", "Batata doce · 1 un média"]}]. IMPORTANTE: cada item em "substituicoes" precisa ser uma string simples, NÃO um objeto.' />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+            <button className="btn" onClick={publicar} disabled={busy || !json.trim()}>
+              <i className="ti ti-send" aria-hidden="true"></i> {busy ? 'Publicando...' : 'Publicar substituições'}
+            </button>
+          </div>
+
+          {feedback && <FeedbackInline f={feedback} />}
+        </div>
+      </div>
+
+      <HistoricoLista
+        titulo="Substituições publicadas"
+        items={historico}
+        onDelete={excluirSubstituicao}
+        renderItem={(s) => (
+          <>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 500 }}>
+                {Array.isArray(s.dados) ? `${s.dados.length} alimentos` : '—'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                Publicado em {dataBR(s.publicado_em)}
+              </div>
+            </div>
+            <button className="btn-outline" style={{ fontSize: 12, padding: '4px 10px' }}
+              onClick={() => setVerJson(s)}>
               <i className="ti ti-code" aria-hidden="true"></i> JSON
             </button>
           </>

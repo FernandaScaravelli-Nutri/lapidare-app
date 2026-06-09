@@ -146,6 +146,64 @@ export function contarItensLista(dados) {
 }
 
 /**
+ * Estrutura esperada das substituições:
+ * [
+ *   { alimento: "Arroz integral", medida?: "4 col sopa", substituicoes: ["Quinoa cozida · 4 col sopa", ...] }
+ * ]
+ *
+ * Vive numa tabela separada (substituicoes) pra evitar JSON gigante no plano
+ * e separar a edição (nutri pode atualizar substituições sem republicar o plano).
+ */
+export function validarSubstituicoes(obj) {
+  if (!Array.isArray(obj)) {
+    return { ok: false, erro: 'JSON inválido — esperado um array de substituições no formato [{ alimento, substituicoes: [...] }].' };
+  }
+  if (obj.length === 0) {
+    return { ok: false, erro: 'A lista está vazia. Adicione pelo menos uma substituição.' };
+  }
+  for (let i = 0; i < obj.length; i++) {
+    const item = obj[i];
+    if (!item || typeof item !== 'object') {
+      return { ok: false, erro: `Item #${i + 1}: precisa ser um objeto { alimento, substituicoes }.` };
+    }
+    if (!item.alimento || typeof item.alimento !== 'string') {
+      return { ok: false, erro: `Item #${i + 1}: campo "alimento" obrigatório (texto).` };
+    }
+    if (!Array.isArray(item.substituicoes)) {
+      return { ok: false, erro: `Item "${item.alimento}": campo "substituicoes" precisa ser um array de strings.` };
+    }
+    if (item.substituicoes.length === 0) {
+      return { ok: false, erro: `Item "${item.alimento}": precisa ter pelo menos uma opção em "substituicoes".` };
+    }
+    for (let k = 0; k < item.substituicoes.length; k++) {
+      if (item.substituicoes[k] !== null && typeof item.substituicoes[k] === 'object') {
+        return {
+          ok: false,
+          erro: `Item "${item.alimento}", substituição #${k + 1}: precisa ser texto simples, não objeto. Exemplo correto: "Quinoa cozida · 4 col sopa".`,
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Constrói um mapa case-insensitive { nome_alimento: [substituições] }
+ * a partir dos dados validados. Usado pelo Plano.jsx pra fazer lookup
+ * quando a paciente clica em "Ver substituições" num alimento.
+ */
+export function indexarSubstituicoes(dados) {
+  if (!Array.isArray(dados)) return {};
+  const mapa = {};
+  for (const item of dados) {
+    if (!item?.alimento) continue;
+    const chave = String(item.alimento).trim().toLowerCase();
+    mapa[chave] = item.substituicoes ?? [];
+  }
+  return mapa;
+}
+
+/**
  * Gera as parcelas a partir de uma venda. Retorna array de
  * { numero, valor, vencimento (YYYY-MM-DD) }.
  *

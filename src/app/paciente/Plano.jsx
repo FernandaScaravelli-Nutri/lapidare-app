@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useSession } from '../../lib/session.jsx';
-import { dataBR } from '../../lib/utils.js';
+import { dataBR, indexarSubstituicoes } from '../../lib/utils.js';
 
 /**
  * Renderiza uma substituição com segurança — aceita string OU objeto.
@@ -27,26 +27,41 @@ export default function Plano() {
   const { user } = useSession();
   const [plano, setPlano] = useState(undefined); // undefined=loading, null=vazio
   const [validade, setValidade] = useState(null);
+  const [subsExternas, setSubsExternas] = useState(null); // dados da tabela substituicoes
   const [openSubs, setOpenSubs] = useState({});
 
   useEffect(() => {
     let active = true;
     async function load() {
       if (!user) return;
-      const { data } = await supabase
-        .from('planos')
-        .select('dados, validade, publicado_em')
-        .eq('paciente_id', user.id)
-        .order('publicado_em', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const [pRes, sRes] = await Promise.all([
+        supabase
+          .from('planos')
+          .select('dados, validade, publicado_em')
+          .eq('paciente_id', user.id)
+          .order('publicado_em', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('substituicoes')
+          .select('dados, publicado_em')
+          .eq('paciente_id', user.id)
+          .order('publicado_em', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
       if (!active) return;
-      setPlano(data?.dados ?? null);
-      setValidade(data?.validade ?? null);
+      setPlano(pRes.data?.dados ?? null);
+      setValidade(pRes.data?.validade ?? null);
+      setSubsExternas(sRes.data?.dados ?? null);
     }
     load();
     return () => { active = false; };
   }, [user]);
+
+  // Índice nome_alimento -> [substituições], construído da tabela substituicoes.
+  // Faz lookup case-insensitive quando paciente clica em "Ver substituições".
+  const indiceSubs = useMemo(() => indexarSubstituicoes(subsExternas), [subsExternas]);
 
   const toggleSubs = (key) => setOpenSubs(s => ({ ...s, [key]: !s[key] }));
 
@@ -129,21 +144,27 @@ export default function Plano() {
                 {al.kcal && <span className="alimento-kcal">{al.kcal} kcal</span>}
               </div>
 
-              {al.subs?.length > 0 && (
-                <>
-                  <button className="subs-toggle" onClick={() => toggleSubs(`${ri}-${ai}`)}>
-                    <i className={`ti ti-${openSubs[`${ri}-${ai}`] ? 'chevron-up' : 'chevron-down'}`} style={{ fontSize: 12 }} aria-hidden="true"></i>
-                    {openSubs[`${ri}-${ai}`] ? 'Fechar substituições' : `Ver ${al.subs.length} substituições`}
-                  </button>
-                  {openSubs[`${ri}-${ai}`] && (
-                    <div className="subs-list">
-                      {al.subs.map((s, si) => (
-                        <div key={si} className="sub-item">→ {formatarSub(s)}</div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
+              {(() => {
+                // Prioridade: tabela substituicoes (novo) > campo subs no plano (legado)
+                const externas = indiceSubs[String(al.nome ?? '').trim().toLowerCase()] ?? [];
+                const subs = externas.length > 0 ? externas : (Array.isArray(al.subs) ? al.subs : []);
+                if (subs.length === 0) return null;
+                return (
+                  <>
+                    <button className="subs-toggle" onClick={() => toggleSubs(`${ri}-${ai}`)}>
+                      <i className={`ti ti-${openSubs[`${ri}-${ai}`] ? 'chevron-up' : 'chevron-down'}`} style={{ fontSize: 12 }} aria-hidden="true"></i>
+                      {openSubs[`${ri}-${ai}`] ? 'Fechar substituições' : `Ver ${subs.length} substituições`}
+                    </button>
+                    {openSubs[`${ri}-${ai}`] && (
+                      <div className="subs-list">
+                        {subs.map((s, si) => (
+                          <div key={si} className="sub-item">→ {formatarSub(s)}</div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           ))}
 
