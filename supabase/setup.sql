@@ -96,6 +96,11 @@ create table if not exists public.substituicoes (
 create index if not exists substituicoes_paciente_id_idx on public.substituicoes(paciente_id, publicado_em desc);
 create index if not exists substituicoes_nutri_id_idx on public.substituicoes(nutri_id);
 
+-- v1.10.0: coluna pdf_url nas 3 tabelas (Plano, Substituições, Compras)
+alter table public.planos          add column if not exists pdf_url text;
+alter table public.substituicoes   add column if not exists pdf_url text;
+alter table public.listas_compras  add column if not exists pdf_url text;
+
 -- 2.4 Listas de compras --------------------------------------------
 create table if not exists public.listas_compras (
   id            uuid primary key default gen_random_uuid(),
@@ -1153,6 +1158,34 @@ create policy suplementos_logs_write_paciente on public.suplementos_logs for all
 drop policy if exists pacientes_update_self on public.pacientes;
 create policy pacientes_update_self on public.pacientes for update
   using (id = auth.uid()) with check (id = auth.uid());
+
+
+-- 10.5-b Bucket de documentos (PDFs do Plano/Substituições/Compras) — v1.10.0
+insert into storage.buckets (id, name, public)
+values ('documentos', 'documentos', true)
+on conflict (id) do nothing;
+
+drop policy if exists documentos_select on storage.objects;
+create policy documentos_select on storage.objects
+  for select using (bucket_id = 'documentos');
+
+drop policy if exists documentos_insert on storage.objects;
+create policy documentos_insert on storage.objects
+  for insert with check (
+    bucket_id = 'documentos' and auth.uid() is not null
+  );
+
+drop policy if exists documentos_update on storage.objects;
+create policy documentos_update on storage.objects
+  for update using (
+    bucket_id = 'documentos' and auth.uid() is not null
+  );
+
+drop policy if exists documentos_delete on storage.objects;
+create policy documentos_delete on storage.objects
+  for delete using (
+    bucket_id = 'documentos' and auth.uid() is not null
+  );
 
 
 -- 10.6 Bucket de e-books + policies ----------------------------

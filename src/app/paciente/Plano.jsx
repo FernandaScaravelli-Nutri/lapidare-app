@@ -27,7 +27,9 @@ export default function Plano() {
   const { user } = useSession();
   const [plano, setPlano] = useState(undefined); // undefined=loading, null=vazio
   const [validade, setValidade] = useState(null);
-  const [subsExternas, setSubsExternas] = useState(null); // dados da tabela substituicoes
+  const [pdfPlano, setPdfPlano] = useState(null);          // URL do PDF do plano
+  const [subsExternas, setSubsExternas] = useState(null);  // dados da tabela substituicoes
+  const [pdfSubs, setPdfSubs] = useState(null);            // URL do PDF de substituições
   const [openSubs, setOpenSubs] = useState({});
 
   useEffect(() => {
@@ -37,14 +39,14 @@ export default function Plano() {
       const [pRes, sRes] = await Promise.all([
         supabase
           .from('planos')
-          .select('dados, validade, publicado_em')
+          .select('dados, validade, pdf_url, publicado_em')
           .eq('paciente_id', user.id)
           .order('publicado_em', { ascending: false })
           .limit(1)
           .maybeSingle(),
         supabase
           .from('substituicoes')
-          .select('dados, publicado_em')
+          .select('dados, pdf_url, publicado_em')
           .eq('paciente_id', user.id)
           .order('publicado_em', { ascending: false })
           .limit(1)
@@ -53,7 +55,9 @@ export default function Plano() {
       if (!active) return;
       setPlano(pRes.data?.dados ?? null);
       setValidade(pRes.data?.validade ?? null);
+      setPdfPlano(pRes.data?.pdf_url ?? null);
       setSubsExternas(sRes.data?.dados ?? null);
+      setPdfSubs(sRes.data?.pdf_url ?? null);
     }
     load();
     return () => { active = false; };
@@ -86,6 +90,42 @@ export default function Plano() {
 
   return (
     <>
+      {/* Botões de PDF (se a nutri anexou) */}
+      {(pdfPlano || pdfSubs) && (
+        <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px', flexWrap: 'wrap' }}>
+          {pdfPlano && (
+            <a href={pdfPlano} target="_blank" rel="noopener noreferrer"
+               className="pdf-download-btn"
+               style={{
+                 flex: 1, minWidth: 140,
+                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                 padding: '10px 14px', borderRadius: 10,
+                 background: 'var(--gold-bg, #fff7e0)', color: 'var(--gold-deep, #5a4400)',
+                 border: '1px solid var(--gold, #c9a86a)',
+                 fontSize: 13, fontWeight: 500, textDecoration: 'none',
+               }}>
+              <i className="ti ti-file-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Baixar PDF do plano
+            </a>
+          )}
+          {pdfSubs && (
+            <a href={pdfSubs} target="_blank" rel="noopener noreferrer"
+               className="pdf-download-btn"
+               style={{
+                 flex: 1, minWidth: 140,
+                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                 padding: '10px 14px', borderRadius: 10,
+                 background: 'var(--gold-bg, #fff7e0)', color: 'var(--gold-deep, #5a4400)',
+                 border: '1px solid var(--gold, #c9a86a)',
+                 fontSize: 13, fontWeight: 500, textDecoration: 'none',
+               }}>
+              <i className="ti ti-file-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+              Baixar PDF das substituições
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Macros */}
       <div className="card" style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

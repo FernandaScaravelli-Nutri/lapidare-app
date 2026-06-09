@@ -631,6 +631,7 @@ function PublicarPlano({ pacienteId, nutriId }) {
   const [historico, setHistorico] = useState([]);
   const [json, setJson] = useState('');
   const [validade, setValidade] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [verJson, setVerJson] = useState(null);
@@ -638,7 +639,7 @@ function PublicarPlano({ pacienteId, nutriId }) {
   async function carregar() {
     const { data } = await supabase
       .from('planos')
-      .select('id, dados, validade, publicado_em')
+      .select('id, dados, validade, pdf_url, publicado_em')
       .eq('paciente_id', pacienteId)
       .order('publicado_em', { ascending: false })
       .limit(5);
@@ -656,17 +657,27 @@ function PublicarPlano({ pacienteId, nutriId }) {
     if (!v.ok) return setFeedback({ tipo: 'erro', msg: v.erro });
 
     setBusy(true);
+    let pdfUrl = null;
+    try {
+      pdfUrl = await uploadDocumento(pdfFile, { nutriId, pacienteId, tipo: 'plano' });
+    } catch (e) {
+      setBusy(false);
+      return setFeedback({ tipo: 'erro', msg: e.message });
+    }
+
     const { error } = await supabase.from('planos').insert({
       paciente_id: pacienteId,
       nutri_id: nutriId,
       dados,
       validade: validade || dados.validade || null,
+      pdf_url: pdfUrl,
     });
     setBusy(false);
     if (error) return setFeedback({ tipo: 'erro', msg: error.message });
-    setFeedback({ tipo: 'ok', msg: 'Plano publicado! A paciente verá agora.' });
+    setFeedback({ tipo: 'ok', msg: `Plano publicado!${pdfUrl ? ' PDF anexado.' : ''} A paciente verá agora.` });
     setJson('');
     setValidade('');
+    setPdfFile(null);
     carregar();
   }
 
@@ -700,6 +711,13 @@ function PublicarPlano({ pacienteId, nutriId }) {
 
           <DicaJSON
             exemploPrompt='gera um JSON de plano alimentar pra paciente com objetivo de emagrecimento, 1500 kcal, 4 refeições (café, almoço, lanche, jantar). Estrutura: { "macros": { "kcal": 1500, "proteinas_g": 90, "carbo_g": 150, "gorduras_g": 50, "agua_l": 2.5 }, "refeicoes": [{ "nome": "Café da manhã", "horario": "07:30", "alimentos": [{ "nome": "...", "quantidade": "...", "subs": [{ "nome": "..." }] }] }] }' />
+
+          <UploadPdfField
+            pdfFile={pdfFile}
+            setPdfFile={setPdfFile}
+            pdfUrlAtual={historico[0]?.pdf_url}
+            tipo="plano"
+          />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginTop: 10 }}>
             <div>
@@ -757,6 +775,7 @@ function PublicarPlano({ pacienteId, nutriId }) {
 function PublicarSubstituicoes({ pacienteId, nutriId }) {
   const [historico, setHistorico] = useState([]);
   const [json, setJson] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [verJson, setVerJson] = useState(null);
@@ -764,7 +783,7 @@ function PublicarSubstituicoes({ pacienteId, nutriId }) {
   async function carregar() {
     const { data } = await supabase
       .from('substituicoes')
-      .select('id, dados, publicado_em')
+      .select('id, dados, pdf_url, publicado_em')
       .eq('paciente_id', pacienteId)
       .order('publicado_em', { ascending: false })
       .limit(5);
@@ -782,15 +801,25 @@ function PublicarSubstituicoes({ pacienteId, nutriId }) {
     if (!v.ok) return setFeedback({ tipo: 'erro', msg: v.erro });
 
     setBusy(true);
+    let pdfUrl = null;
+    try {
+      pdfUrl = await uploadDocumento(pdfFile, { nutriId, pacienteId, tipo: 'substituicoes' });
+    } catch (e) {
+      setBusy(false);
+      return setFeedback({ tipo: 'erro', msg: e.message });
+    }
+
     const { error } = await supabase.from('substituicoes').insert({
       paciente_id: pacienteId,
       nutri_id: nutriId,
       dados,
+      pdf_url: pdfUrl,
     });
     setBusy(false);
     if (error) return setFeedback({ tipo: 'erro', msg: error.message });
-    setFeedback({ tipo: 'ok', msg: `Substituições publicadas! ${dados.length} alimentos com opções de troca.` });
+    setFeedback({ tipo: 'ok', msg: `Substituições publicadas!${pdfUrl ? ' PDF anexado.' : ''} ${dados.length} alimentos com opções de troca.` });
     setJson('');
+    setPdfFile(null);
     carregar();
   }
 
@@ -827,6 +856,13 @@ function PublicarSubstituicoes({ pacienteId, nutriId }) {
 
           <DicaJSON
             exemploPrompt='Gere um JSON com substituições para cada alimento deste plano alimentar [cole o plano da paciente aqui]. Formato exato: array de objetos, cada um com 3 campos — "alimento" (nome igual ao do plano), "medida" (a quantidade do plano) e "substituicoes" (array de strings com 3 a 5 opções equivalentes nutricionalmente, cada uma já incluindo a quantidade). Exemplo: [{"alimento": "Arroz integral", "medida": "4 col sopa", "substituicoes": ["Quinoa cozida · 4 col sopa", "Batata doce · 1 un média"]}]. IMPORTANTE: cada item em "substituicoes" precisa ser uma string simples, NÃO um objeto.' />
+
+          <UploadPdfField
+            pdfFile={pdfFile}
+            setPdfFile={setPdfFile}
+            pdfUrlAtual={historico[0]?.pdf_url}
+            tipo="substituicoes"
+          />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
             <button className="btn" onClick={publicar} disabled={busy || !json.trim()}>
@@ -873,6 +909,7 @@ function PublicarSubstituicoes({ pacienteId, nutriId }) {
 function PublicarLista({ pacienteId, nutriId }) {
   const [historico, setHistorico] = useState([]);
   const [json, setJson] = useState('');
+  const [pdfFile, setPdfFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [verJson, setVerJson] = useState(null);
@@ -880,7 +917,7 @@ function PublicarLista({ pacienteId, nutriId }) {
   async function carregar() {
     const { data } = await supabase
       .from('listas_compras')
-      .select('id, dados, publicado_em')
+      .select('id, dados, pdf_url, publicado_em')
       .eq('paciente_id', pacienteId)
       .order('publicado_em', { ascending: false })
       .limit(5);
@@ -898,15 +935,25 @@ function PublicarLista({ pacienteId, nutriId }) {
     if (!v.ok) return setFeedback({ tipo: 'erro', msg: v.erro });
 
     setBusy(true);
+    let pdfUrl = null;
+    try {
+      pdfUrl = await uploadDocumento(pdfFile, { nutriId, pacienteId, tipo: 'compras' });
+    } catch (e) {
+      setBusy(false);
+      return setFeedback({ tipo: 'erro', msg: e.message });
+    }
+
     const { error } = await supabase.from('listas_compras').insert({
       paciente_id: pacienteId,
       nutri_id: nutriId,
       dados,
+      pdf_url: pdfUrl,
     });
     setBusy(false);
     if (error) return setFeedback({ tipo: 'erro', msg: error.message });
-    setFeedback({ tipo: 'ok', msg: 'Lista publicada! A paciente verá agora.' });
+    setFeedback({ tipo: 'ok', msg: `Lista publicada!${pdfUrl ? ' PDF anexado.' : ''} A paciente verá agora.` });
     setJson('');
+    setPdfFile(null);
     carregar();
   }
 
@@ -940,6 +987,13 @@ function PublicarLista({ pacienteId, nutriId }) {
 
           <DicaJSON
             exemploPrompt='gera um JSON de lista de compras pra paciente, agrupando os itens por categoria (Hortifruti, Proteínas, Grãos e cereais, Laticínios, Mercearia, Outros). Inclui só os nomes dos itens (sem quantidade). Estrutura: { "lista": [{ "categoria": "Hortifruti", "emoji": "🥦", "itens": ["banana", "maçã", "alface", "tomate"] }, ...] }' />
+
+          <UploadPdfField
+            pdfFile={pdfFile}
+            setPdfFile={setPdfFile}
+            pdfUrlAtual={historico[0]?.pdf_url}
+            tipo="compras"
+          />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
             <button className="btn" onClick={publicar} disabled={busy || !json.trim()}>
@@ -1161,6 +1215,72 @@ function EnviarPrescricao({ pacienteId, nutriId }) {
 /* ============================================================
    COMPONENTES AUXILIARES
    ============================================================ */
+/**
+ * Campo opcional pra subir um PDF junto com Plano/Substituições/Lista.
+ * - tipo: 'plano' | 'substituicoes' | 'compras'  (vira pasta no bucket)
+ * - pdfUrlAtual: URL salvada no banco (se já existe). Mostra link "Ver atual".
+ * - onArquivoSelecionado: callback (file | null) — pai guarda no estado.
+ */
+function UploadPdfField({ pdfFile, setPdfFile, pdfUrlAtual, tipo }) {
+  const rotulo = {
+    plano: 'PDF do plano (opcional)',
+    substituicoes: 'PDF das substituições (opcional)',
+    compras: 'PDF da lista de compras (opcional)',
+  }[tipo] ?? 'PDF (opcional)';
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label className="field-label">{rotulo}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <input
+          type="file"
+          accept="application/pdf,.pdf"
+          onChange={e => setPdfFile(e.target.files?.[0] ?? null)}
+          style={{ fontSize: 13 }}
+        />
+        {pdfFile && (
+          <button
+            type="button"
+            onClick={() => setPdfFile(null)}
+            className="btn-outline"
+            style={{ fontSize: 11, padding: '4px 8px' }}>
+            <i className="ti ti-x" aria-hidden="true"></i> Remover seleção
+          </button>
+        )}
+        {!pdfFile && pdfUrlAtual && (
+          <a href={pdfUrlAtual} target="_blank" rel="noopener noreferrer"
+             className="btn-outline" style={{ fontSize: 11, padding: '4px 8px' }}>
+            <i className="ti ti-file-download" aria-hidden="true"></i> Ver PDF atual
+          </a>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+        A paciente vai ver um botão "Baixar PDF" na tela. Máximo 10 MB.
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Faz upload de um File pro bucket 'documentos' e retorna a URL pública.
+ * Path: {nutriId}/{pacienteId}/{tipo}/{timestamp}-{filename}
+ * Volta null se file estiver vazio. Lança erro se upload falhar.
+ */
+async function uploadDocumento(file, { nutriId, pacienteId, tipo }) {
+  if (!file) return null;
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('PDF muito grande (máx 10 MB).');
+  }
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${nutriId}/${pacienteId}/${tipo}/${Date.now()}-${safe}`;
+  const { error } = await supabase.storage.from('documentos').upload(path, file, {
+    contentType: file.type || 'application/pdf',
+  });
+  if (error) throw new Error('Falha no upload do PDF: ' + error.message);
+  const { data } = supabase.storage.from('documentos').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 function FeedbackInline({ f }) {
   const ok = f.tipo === 'ok';
   return (

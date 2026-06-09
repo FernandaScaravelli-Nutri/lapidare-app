@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
-  "released_at": "2026-06-08",
-  "notes": "Nova aba 'Substituições' no perfil da paciente — gerencia substituições em JSON separado do plano alimentar"
+  "version": "1.10.0",
+  "released_at": "2026-06-09",
+  "notes": "Nutri pode anexar PDF no Plano, Substituições e Lista de Compras. Paciente baixa direto do app."
 }

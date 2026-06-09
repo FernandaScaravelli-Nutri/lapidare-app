@@ -41,6 +41,7 @@ function limparLista(compras) {
 export default function Compras() {
   const { user } = useSession();
   const [compras, setCompras] = useState(undefined);
+  const [pdfUrl, setPdfUrl] = useState(null);
   const [marcados, setMarcados] = useState({});
 
   useEffect(() => {
@@ -49,13 +50,14 @@ export default function Compras() {
       if (!user) return;
       const { data } = await supabase
         .from('listas_compras')
-        .select('dados, publicado_em')
+        .select('dados, pdf_url, publicado_em')
         .eq('paciente_id', user.id)
         .order('publicado_em', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!active) return;
       setCompras(data?.dados ?? null);
+      setPdfUrl(data?.pdf_url ?? null);
     }
     load();
     return () => { active = false; };
@@ -87,6 +89,21 @@ export default function Compras() {
 
   return (
     <>
+      {pdfUrl && (
+        <div style={{ padding: '0 16px 12px' }}>
+          <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+             style={{
+               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+               width: '100%', padding: '10px 14px', borderRadius: 10,
+               background: 'var(--gold-bg, #fff7e0)', color: 'var(--gold-deep, #5a4400)',
+               border: '1px solid var(--gold, #c9a86a)',
+               fontSize: 13, fontWeight: 500, textDecoration: 'none',
+             }}>
+            <i className="ti ti-file-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+            Baixar PDF da lista de compras
+          </a>
+        </div>
+      )}
       <div className="card" style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 10, letterSpacing: '.18em', textTransform: 'uppercase', color: 'var(--muted)', fontWeight: 500 }}>
