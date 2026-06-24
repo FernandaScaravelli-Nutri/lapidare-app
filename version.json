@@ -1,5 +1,5 @@
 {
-  "version": "1.11.1",
+  "version": "1.11.2",
   "released_at": "2026-06-09",
-  "notes": "Nutri agora pode editar o sexo de pacientes já cadastradas direto no perfil"
+  "notes": "Fix: topbar no mobile não fica mais atrás do notch/status bar do iOS. Fix: dropdown 'Enviar check-in' agora abre pra cima quando estiver perto do bottom da tela."
 }

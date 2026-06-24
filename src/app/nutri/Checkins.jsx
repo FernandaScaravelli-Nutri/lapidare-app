@@ -435,6 +435,20 @@ async function processarAgendamentosVencidos(nutriId, agendamentos, mostraToast)
    ============================================================ */
 function SelecionarEnviarTemplate({ templates, padrao, onEscolher }) {
   const [aberto, setAberto] = useState(false);
+  const [abrirParaCima, setAbrirParaCima] = useState(false);
+  const btnRef = useRef(null);
+
+  // Smart positioning: se o botão estiver perto do bottom do viewport,
+  // abre pra cima em vez de pra baixo (senão o dropdown sai da tela
+  // quando o paciente fica na última linha da tabela).
+  useEffect(() => {
+    if (!aberto || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const espacoAbaixo = window.innerHeight - rect.bottom;
+    const alturaDropdown = Math.min(templates.length * 56 + 16, 320);
+    setAbrirParaCima(espacoAbaixo < alturaDropdown + 20);
+  }, [aberto, templates.length]);
+
   if (templates.length === 0) {
     return <button className="btn" disabled style={{ fontSize: 12, padding: '4px 10px', opacity: .5 }}>Sem templates</button>;
   }
@@ -448,7 +462,7 @@ function SelecionarEnviarTemplate({ templates, padrao, onEscolher }) {
   }
   return (
     <div style={{ position: 'relative' }}>
-      <button className="btn" style={{ fontSize: 12, padding: '4px 10px' }}
+      <button ref={btnRef} className="btn" style={{ fontSize: 12, padding: '4px 10px' }}
         onClick={() => setAberto(a => !a)}>
         <i className="ti ti-send" aria-hidden="true"></i> Enviar
         <i className="ti ti-chevron-down" style={{ fontSize: 13, marginLeft: 2 }} aria-hidden="true"></i>
@@ -459,11 +473,14 @@ function SelecionarEnviarTemplate({ templates, padrao, onEscolher }) {
             position: 'fixed', inset: 0, zIndex: 90,
           }} />
           <div style={{
-            position: 'absolute', right: 0, top: '100%', marginTop: 4,
+            position: 'absolute', right: 0,
+            ...(abrirParaCima
+              ? { bottom: '100%', marginBottom: 4 }
+              : { top: '100%', marginTop: 4 }),
             background: 'var(--white)', border: '0.5px solid var(--border)',
-            borderRadius: 8, minWidth: 220, zIndex: 100,
+            borderRadius: 8, minWidth: 220, maxHeight: 320, zIndex: 100,
             boxShadow: '0 4px 12px rgba(28,23,18,.1)',
-            overflow: 'hidden',
+            overflow: 'hidden auto',
           }}>
             {templates.map(t => {
               const isPadrao = t.id === padrao?.id;

@@ -433,12 +433,22 @@
     display: inline-flex;
   }
 
-  /* Topbar: esconde a categoria, foco no título */
-  .nutri-panel .topbar { padding: 0 14px; gap: 8px; }
+  /* Topbar: esconde a categoria, foco no título.
+     Respeita safe-area-inset-top do iOS (notch / dynamic island) — sem isso,
+     o topbar fica atrás da barra de status do celular e o hamburger não clica. */
+  .nutri-panel .topbar {
+    padding: env(safe-area-inset-top, 0) 14px 0;
+    height: calc(52px + env(safe-area-inset-top, 0));
+    gap: 8px;
+  }
   .nutri-panel .topbar-zone,
   .nutri-panel .topbar-sep,
   .nutri-panel .topbar-date { display: none; }
   .nutri-panel .topbar-page { font-size: 14px; }
+
+  /* Sidebar mobile também respeita o notch (quando ela abre fica off-canvas
+     do topo até o bottom, então precisa do padding pra não cortar o brand) */
+  .nutri-panel .sidebar { padding-top: env(safe-area-inset-top, 0); }
 
   /* Content: menos padding */
   .nutri-panel .content { padding: 16px; }
