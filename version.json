@@ -1,5 +1,5 @@
 {
-  "version": "1.11.2",
+  "version": "1.12.0",
   "released_at": "2026-06-09",
-  "notes": "Fix: topbar no mobile não fica mais atrás do notch/status bar do iOS. Fix: dropdown 'Enviar check-in' agora abre pra cima quando estiver perto do bottom da tela."
+  "notes": "Nutri pode anexar PDF na avaliação antropométrica (avaliação física presencial ou exportada do Shaped). Paciente baixa direto da tela de Progresso."
 }

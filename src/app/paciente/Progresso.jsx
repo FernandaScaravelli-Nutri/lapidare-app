@@ -41,7 +41,7 @@ export default function Progresso() {
       if (!user) return;
       const { data } = await supabase
         .from('peso_registros')
-        .select('id, data, kg, altura_cm, cintura_cm, quadril_cm, braco_cm, coxa_cm, pgc, mm_kg, obs')
+        .select('id, data, kg, altura_cm, cintura_cm, quadril_cm, braco_cm, coxa_cm, pgc, mm_kg, obs, pdf_url')
         .eq('paciente_id', user.id)
         .order('data', { ascending: true });
       if (!active) return;
@@ -214,6 +214,18 @@ export default function Progresso() {
               <div style={{ fontSize: 11, color: 'var(--ink-soft)', fontStyle: 'italic', marginTop: 6 }}>
                 "{r.obs}"
               </div>
+            )}
+            {r.pdf_url && (
+              <a href={r.pdf_url} target="_blank" rel="noopener noreferrer"
+                 style={{
+                   display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6,
+                   fontSize: 11, color: 'var(--gold-deep)', textDecoration: 'none',
+                   padding: '4px 8px', borderRadius: 6,
+                   background: 'var(--gold-bg, #fff7e0)', border: '0.5px solid var(--gold, #c9a86a)',
+                 }}>
+                <i className="ti ti-file-download" style={{ fontSize: 13 }} aria-hidden="true"></i>
+                Baixar PDF da avaliação
+              </a>
             )}
           </div>
         ))}

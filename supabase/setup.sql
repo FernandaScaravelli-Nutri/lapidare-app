@@ -168,6 +168,7 @@ alter table public.peso_registros
   add column if not exists pgc         numeric(5,2),
   add column if not exists mm_kg       numeric(5,2),
   add column if not exists obs         text,
+  add column if not exists pdf_url     text,
   add column if not exists created_at  timestamptz not null default now();
 create index if not exists peso_registros_paciente_id_idx on public.peso_registros(paciente_id, data);
 

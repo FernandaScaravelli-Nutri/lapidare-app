@@ -459,6 +459,7 @@ function CheckinPersonalizado({ pacienteId, nutriId, pacienteNome }) {
 function RegistrarAvaliacao({ pacienteId, nutriId }) {
   const [historico, setHistorico] = useState([]);
   const [form, setForm] = useState(novaAvaliacao());
+  const [pdfFile, setPdfFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
@@ -473,7 +474,7 @@ function RegistrarAvaliacao({ pacienteId, nutriId }) {
   async function carregar() {
     const { data } = await supabase
       .from('peso_registros')
-      .select('id, data, kg, altura_cm, cintura_cm, quadril_cm, braco_cm, coxa_cm, pgc, mm_kg, obs')
+      .select('id, data, kg, altura_cm, cintura_cm, quadril_cm, braco_cm, coxa_cm, pgc, mm_kg, obs, pdf_url')
       .eq('paciente_id', pacienteId)
       .order('data', { ascending: false });
     setHistorico(data ?? []);
@@ -494,6 +495,13 @@ function RegistrarAvaliacao({ pacienteId, nutriId }) {
       return setFeedback({ tipo: 'erro', msg: 'Data e peso são obrigatórios.' });
     }
     setBusy(true);
+    let pdfUrl = null;
+    try {
+      pdfUrl = await uploadDocumento(pdfFile, { nutriId, pacienteId, tipo: 'avaliacao' });
+    } catch (e) {
+      setBusy(false);
+      return setFeedback({ tipo: 'erro', msg: e.message });
+    }
     const payload = {
       paciente_id: pacienteId,
       nutri_id: nutriId,
@@ -507,12 +515,14 @@ function RegistrarAvaliacao({ pacienteId, nutriId }) {
       pgc: num(form.pgc),
       mm_kg: num(form.mm_kg),
       obs: form.obs.trim() || null,
+      pdf_url: pdfUrl,
     };
     const { error } = await supabase.from('peso_registros').insert(payload);
     setBusy(false);
     if (error) return setFeedback({ tipo: 'erro', msg: error.message });
-    setFeedback({ tipo: 'ok', msg: 'Avaliação registrada.' });
+    setFeedback({ tipo: 'ok', msg: `Avaliação registrada.${pdfUrl ? ' PDF anexado.' : ''}` });
     setForm(novaAvaliacao());
+    setPdfFile(null);
     carregar();
   }
 
@@ -600,6 +610,13 @@ function RegistrarAvaliacao({ pacienteId, nutriId }) {
           <textarea rows="2" value={form.obs} onChange={set('obs')}
             placeholder="Ex: avaliação após 30 dias de plano, paciente relata melhora de energia." />
 
+          <UploadPdfField
+            pdfFile={pdfFile}
+            setPdfFile={setPdfFile}
+            pdfUrlAtual={historico[0]?.pdf_url}
+            tipo="avaliacao"
+          />
+
           {feedback && <FeedbackInline f={feedback} />}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
@@ -626,6 +643,7 @@ function RegistrarAvaliacao({ pacienteId, nutriId }) {
                 <th>Quadril</th>
                 <th>% gordura</th>
                 <th>M. magra</th>
+                <th>PDF</th>
                 <th></th>
               </tr>
             </thead>
@@ -638,6 +656,15 @@ function RegistrarAvaliacao({ pacienteId, nutriId }) {
                   <td>{a.quadril_cm ? `${a.quadril_cm} cm` : '—'}</td>
                   <td>{a.pgc ? `${a.pgc}%` : '—'}</td>
                   <td>{a.mm_kg ? `${a.mm_kg} kg` : '—'}</td>
+                  <td>
+                    {a.pdf_url ? (
+                      <a href={a.pdf_url} target="_blank" rel="noopener noreferrer"
+                         title="Abrir PDF"
+                         style={{ color: 'var(--gold-deep)', display: 'inline-flex', alignItems: 'center' }}>
+                        <i className="ti ti-file-download" style={{ fontSize: 16 }} aria-hidden="true"></i>
+                      </a>
+                    ) : <span style={{ color: 'var(--text3)' }}>—</span>}
+                  </td>
                   <td style={{ textAlign: 'right' }}>
                     <button onClick={() => remover(a.id)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', padding: 4 }}
